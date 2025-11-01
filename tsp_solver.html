@@ -1,0 +1,856 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Traveling Salesman Problem Visualizer</title>
+    <!-- Load Tailwind CSS --><script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* --- CSS STYLES FOR DARK THEME (Pink, Blue, Purple Accents) --- */
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #1a1a2e; /* Deep Dark Blue/Purple background */
+            color: #ffffff; /* Default text white */
+        }
+        
+        /* --- Glowing Title Styles --- */
+        .glowing-title {
+            color: #ccccff; /* Lighter bluish-purple text color */
+            /* New glow effect based on map border */
+            text-shadow: 
+                0 0 5px rgba(136, 136, 255, 0.6),  /* Inner glow */
+                0 0 10px rgba(136, 136, 255, 0.4), /* Main glow */
+                0 0 20px rgba(136, 136, 255, 0.3); /* Outer glow */
+        }
+
+        .glowing-subtitle {
+            color: #e0e0ff !important; /* Light lavender color */
+            /* Subtle glow effect */
+            text-shadow: 
+                0 0 4px rgba(0, 255, 255, 0.3),  /* Faint cyan glow */
+                0 0 8px rgba(160, 32, 240, 0.3); /* Faint purple glow */
+        }
+        /* --- End of New Styles --- */
+
+        #mapCanvas {
+            border: 2px solid #8888ff; /* New: Bluish-Purple border */
+            background-color: #251858; /* New: User-requested dark purple */
+            cursor: crosshair;
+            border-radius: 0.5rem;
+            box-shadow: 0 0 15px rgba(136, 136, 255, 0.4); /* New: Less intense bluish-purple glow */
+            width: 100%; /* Ensure canvas is fully responsive */
+            height: auto; /* Handled by container / fixed height attribute */
+        }
+        
+        /* Apply gradient background to all relevant cards/panels */
+        .algorithm-card, 
+        .bg-white, /* This class is used on Settings and Run Algorithms */
+        #pathVizControls, 
+        #greedyControls {
+            background: linear-gradient(180deg, #1f1f1f 0%, #2c2c54 100%) !important; /* Dark Black to Dark Purple gradient */
+            transition: all 0.3s ease;
+            border: 1px solid #3c3c6f;
+            border-radius: 0.5rem;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2); /* Subtle shadow for depth */
+        }
+
+        .algorithm-card.active {
+            border-left: 4px solid #00ffff; /* Cyan highlight for the 'optimal' path */
+            transform: translateY(-2px);
+            box-shadow: 0 0 10px rgba(0, 255, 255, 0.3); /* Cyan shadow */
+        }
+        
+        /* Overrides for text/backgrounds in the dark theme */
+        /* These specific overrides for .bg-white might be less needed now due to the gradient */
+        .text-gray-900 { color: #ffffff !important; }
+        .text-gray-600 { color: #ccc !important; }
+        .text-gray-700 { color: #fff !important; }
+        .text-gray-800 { color: #ffffff !important; }
+
+        /* Specific accent colors for control blocks - ensure text is visible */
+        #greedyStatus, #vizStatus {
+            color: #ffffff !important; /* Ensure status text is bright white */
+        }
+
+    </style>
+</head>
+<body class="p-4 md:p-8">
+    <div class="max-w-7xl mx-auto">
+        <!-- Main Title (Applied glowing-title class) --><h1 class="text-3xl font-extrabold mb-2 glowing-title">Traveling Salesman Problem (TSP) Solver</h1>
+        <p class="text-gray-300 mb-6">Click on the map to place cities (max 12). Start city is always **City A** (Bright Red).</p>
+
+        <!-- NEW TOP ROW: Settings (Full Width, Centered Text, Wider Buttons) --><div class="mb-6">
+            <!-- Settings Panel (Applied gradient via .bg-white override) --><div class="bg-white p-4 rounded-xl shadow-lg border border-gray-100">
+                <!-- Settings Title (Applied glowing-subtitle class) --><h2 class="text-xl font-semibold mb-3 text-center glowing-subtitle">Settings</h2>
+                <div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-3 gap-3">
+                    <button id="deleteLastCity" class="bg-pink-700 hover:bg-pink-800 text-white font-bold py-3 px-4 rounded-lg transition disabled:bg-pink-900 disabled:text-gray-400">
+                        Delete Last City (G)
+                    </button>
+                    <button id="randomCities" class="bg-indigo-700 hover:bg-indigo-800 text-white font-bold py-3 px-4 rounded-lg transition">
+                        Generate 5 Random Cities
+                    </button>
+                    <button id="resetCities" class="bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-4 rounded-lg transition">
+                        Reset All
+                    </button>
+                </div>
+                <div class="mt-4 text-center">
+                    <p class="text-lg font-medium text-white">Cities: <span id="cityCount" class="text-pink-400">0</span></p>
+                    <p class="text-sm text-gray-300 mt-1">N cities limit is 12 for DP and 8 for Brute Force.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- NEW MIDDLE ROW: Visualization Controls & Run Button (Left) & Map (Right) --><div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
+
+            <!-- LEFT COLUMN: All Controls (lg:col-span-1) --><div class="lg:col-span-1 space-y-4">
+                
+                <!-- Run All Algorithms (Applied gradient via .bg-white override) --><div class="bg-white p-4 rounded-xl shadow-lg border border-gray-100">
+                    <!-- Run Algorithms Title (Applied glowing-subtitle class) --><h2 class="text-xl font-semibold mb-3 glowing-subtitle">Run Algorithms</h2>
+                    <button id="runAlgorithms" class="w-full bg-cyan-500 hover:bg-cyan-600 text-gray-900 font-bold py-3 px-4 rounded-lg transition disabled:bg-cyan-700 disabled:text-gray-400">
+                        Run All & Compare
+                    </button>
+                    <p id="runtimeNotice" class="text-xs text-red-400 mt-2 hidden">
+                        Warning: Brute Force/DP are exponential and will be slow for N > 8/12 cities.
+                    </p>
+                </div>
+                
+                <!-- Path Visualization Control (Applied gradient via #pathVizControls override) --><div id="pathVizControls" class="p-4 rounded-xl shadow-lg border">
+                    <!-- Path Visualization Title (Applied glowing-subtitle class) --><h2 class="text-xl font-semibold mb-3 glowing-subtitle">Path Visualization</h2>
+                    <div class="flex space-x-2 text-sm">
+                        <button id="showOptimal" data-path="optimal" class="flex-1 py-2 px-3 rounded-lg font-bold transition">
+                            Optimal Path (Cyan)
+                        </button>
+                        <button id="showGreedy" data-path="greedy" class="flex-1 py-2 px-3 rounded-lg font-bold transition">
+                            Greedy Path (Pink)
+                        </button>
+                    </div>
+                    <p class="mt-3 text-sm font-medium" id="vizStatus">Click "Run All & Compare" to generate paths.</p>
+                </div>
+
+                <!-- Step-by-Step Control for Greedy (Applied gradient via #greedyControls override) --><div id="greedyControls" class="p-4 rounded-xl shadow-lg border">
+                    <!-- Greedy Step-by-Step Title (Applied glowing-subtitle class) --><h2 class="text-xl font-semibold mb-3 glowing-subtitle">Greedy Step-by-Step</h2>
+                    <p class="text-sm text-gray-300 mb-3">Visualize the Nearest Neighbor construction.</p>
+                    <button id="nextStep" class="w-full bg-purple-500 hover:bg-purple-600 text-white font-bold py-2 px-4 rounded-lg transition disabled:bg-purple-800" disabled>
+                        Next Step
+                    </button>
+                    <p id="greedyStatus" class="mt-3 text-sm font-medium"></p>
+                </div>
+            </div>
+
+            <!-- RIGHT COLUMN: Map Canvas (lg:col-span-3) --><div class="lg:col-span-3">
+                <!-- Map Canvas Container --><div>
+                    <!-- **ADJUSTED HEIGHT HERE** --><canvas id="mapCanvas" width="900" height="550"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Results Display (This section remains below the main grid for full width) --><div class="mt-8">
+            <!-- Comparison Results Title (Applied glowing-subtitle class) --><h2 class="text-2xl font-bold mb-4 glowing-subtitle">Comparison Results</h2>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                
+                <!-- Brute Force Card (Applied gradient via .algorithm-card override) --><div id="card-BruteForce" class="algorithm-card p-6 rounded-xl shadow-md">
+                    <!-- Card Title (Applied glowing-subtitle class) --><h3 class="text-lg font-bold flex justify-between items-center glowing-subtitle">
+                        Brute Force (Exact)
+                        <span class="text-xs font-normal text-red-400" id="bfLimit">Max 8 cities</span>
+                    </h3>
+                    <p class="text-sm text-gray-400 mb-2">Checks all possible $N!$ paths.</p>
+                    <p class="mt-2 text-2xl font-extrabold text-white" id="bfCost">Cost: -</p>
+                    <p class="text-sm text-gray-300" id="bfTime">Time: -</p>
+                </div>
+
+                <!-- Dynamic Programming (Held-Karp) Card (Applied gradient via .algorithm-card override) --><div id="card-DP" class="algorithm-card p-6 rounded-xl shadow-md">
+                    <!-- Card Title (Applied glowing-subtitle class) --><h3 class="text-lg font-bold flex justify-between items-center glowing-subtitle">
+                        Dynamic Programming (Exact)
+                        <span class="text-xs font-normal text-red-400" id="dpLimit">Max 12 cities</span>
+                    </h3>
+                    <p class="text-sm text-gray-400 mb-2">Held-Karp algorithm ($O(N^2 2^N)$).</p>
+                    <p class="mt-2 text-2xl font-extrabold text-white" id="dpCost">Cost: -</p>
+                    <p class="text-sm text-gray-300" id="dpTime">Time: -</p>
+                </div>
+
+                <!-- Nearest Neighbor (Greedy) Card (Applied gradient via .algorithm-card override) --><div id="card-Greedy" class="algorithm-card p-6 rounded-xl shadow-md">
+                    <!-- Card Title (Applied glowing-subtitle class) --><h3 class="text-lg font-bold glowing-subtitle">Nearest Neighbor (Heuristic)</h3>
+                    <p class="text-sm text-gray-400 mb-2">Visits the closest unvisited city next ($O(N^2)$).</p>
+                    <p class="mt-2 text-2xl font-extrabold text-white" id="greedyCost">Cost: -</p>
+                    <p class="text-sm text-gray-300" id="greedyTime">Time: -</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- JAVASCRIPT LOGIC ---
+        // Global variables and constants
+        const canvas = document.getElementById('mapCanvas');
+        const ctx = canvas.getContext('2d');
+        const CITY_RADIUS = 7;
+        let cities = [];
+        let runningMethod = 'None'; // 'None', 'Greedy'
+        let greedyStep = 0;
+
+        // Global State for Path Visualization
+        let optimalPath = []; // The best path found by BF or DP (Cyan)
+        let greedyPathFinal = []; // The final path found by Greedy (Pink)
+        let visualizedPathType = 'optimal'; // 'optimal' or 'greedy'
+
+
+        const maxCities = {
+            BruteForce: 8,
+            DP: 12,
+        };
+        
+        // --- Dark Theme Color Palette ---
+        const COLOR_DEFAULT_CITY = '#8888ff'; // Light Purple/Blue for unvisited cities
+        const COLOR_START_CITY = '#ff4d4d'; // Bright Red for City A
+        const COLOR_ACTIVE_CITY = '#a020f0'; // Bright Purple for the current city in step-by-step
+        const COLOR_CITY_STROKE = '#ffffff'; // White stroke and labels
+        
+        const COLOR_OPTIMAL_PATH = '#00ffff'; // Cyan for the Optimal path
+        const COLOR_GREEDY_PATH = '#ff69b4'; // Hot Pink/Magenta for the Greedy path
+
+
+        // --- Utility Functions ---
+
+        /**
+         * Calculates Euclidean distance between two cities.
+         */
+        function distance(city1, city2) {
+            const dx = city1.x - city2.x;
+            const dy = city1.y - city2.y;
+            return Math.sqrt(dx * dx + dy * dy);
+        }
+
+        /**
+         * Calculates the total tour length for a given path (cycle returning to start).
+         */
+        function calculateTourCost(path) {
+            if (path.length < 2) return 0;
+            let cost = 0;
+            for (let i = 0; i < path.length; i++) {
+                const currentCity = path[i];
+                const nextCity = path[(i + 1) % path.length]; // Connects the last city to the first
+                cost += distance(currentCity, nextCity);
+            }
+            return cost;
+        }
+
+        // --- Drawing Functions ---
+
+        function drawCity(city, index, color = COLOR_DEFAULT_CITY, isCurrent = false) {
+            ctx.beginPath();
+            // Draw circle
+            ctx.arc(city.x, city.y, CITY_RADIUS + (isCurrent ? 3 : 0), 0, 2 * Math.PI);
+            ctx.fillStyle = color;
+            ctx.fill();
+            ctx.strokeStyle = COLOR_CITY_STROKE;
+            ctx.lineWidth = 1.5;
+            ctx.stroke();
+
+            // Draw label
+            ctx.fillStyle = COLOR_CITY_STROKE;
+            ctx.font = '12px Inter';
+            const label = String.fromCharCode(65 + index); // A, B, C, ...
+            ctx.fillText(label, city.x + 10, city.y + 5);
+        }
+
+        function drawPath(path, color, lineWidth = 3) {
+            if (path.length < 2) return;
+
+            ctx.beginPath();
+            ctx.strokeStyle = color;
+            ctx.lineWidth = lineWidth;
+            ctx.setLineDash([]);
+            
+            // Start at the first city
+            ctx.moveTo(path[0].x, path[0].y);
+
+            // Draw lines between sequential cities
+            for (let i = 1; i < path.length; i++) {
+                ctx.lineTo(path[i].x, path[i].y);
+            }
+
+            // Close the loop (connect last to first)
+            ctx.lineTo(path[0].x, path[0].y);
+            ctx.stroke();
+        }
+
+        function drawMap(currentPath = [], activeCityIndex = -1, pathColor = COLOR_OPTIMAL_PATH) {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Draw the current path (if provided)
+            if (currentPath.length > 0) {
+                drawPath(currentPath, pathColor, 3);
+            }
+
+            // Draw all cities
+            cities.forEach((city, index) => {
+                let color = COLOR_DEFAULT_CITY; // Default Purple/Blue
+
+                if (index === activeCityIndex) {
+                    color = COLOR_ACTIVE_CITY; // Bright Purple for active step city
+                } else if (index === 0) {
+                    // Starting city (A) is always Red
+                    color = COLOR_START_CITY; 
+                } else if (currentPath.includes(city)) {
+                    // Visited city in the final path (color doesn't matter much as path color dominates)
+                    color = COLOR_OPTIMAL_PATH; 
+                } 
+
+                drawCity(city, index, color, index === activeCityIndex);
+            });
+        }
+
+        // --- TSP Algorithm Implementations ---
+
+        // 1. Greedy (Nearest Neighbor) Heuristic (O(N^2))
+        function* greedyTspGenerator(startCityIndex = 0) {
+            const n = cities.length;
+            if (n < 2) return;
+
+            const visited = new Array(n).fill(false);
+            const path = [cities[startCityIndex]];
+            visited[startCityIndex] = true;
+            let currentCityIndex = startCityIndex;
+
+            yield { path: [...path], current: currentCityIndex, status: `Starting tour at **City A**.` };
+
+            for (let step = 0; step < n - 1; step++) {
+                let nearestNeighborIndex = -1;
+                let minDistance = Infinity;
+                const prevCity = currentCityIndex;
+
+                // Find the nearest unvisited city
+                for (let i = 0; i < n; i++) {
+                    if (!visited[i]) {
+                        const dist = distance(cities[currentCityIndex], cities[i]);
+                        if (dist < minDistance) {
+                            minDistance = dist;
+                            nearestNeighborIndex = i;
+                        }
+                    }
+                }
+
+                if (nearestNeighborIndex !== -1) {
+                    currentCityIndex = nearestNeighborIndex;
+                    visited[currentCityIndex] = true;
+                    path.push(cities[currentCityIndex]);
+                    yield {
+                        path: [...path],
+                        current: currentCityIndex,
+                        status: `From ${String.fromCharCode(65 + prevCity)}, chose nearest unvisited city: **${String.fromCharCode(65 + currentCityIndex)}**. Dist: ${minDistance.toFixed(1)}.`
+                    };
+                }
+            }
+            // Final step: return to start
+            const returnDist = distance(path[path.length - 1], cities[startCityIndex]);
+            yield {
+                path: [...path],
+                current: startCityIndex,
+                status: `Tour complete. Returning to start **City A**. Return Dist: ${returnDist.toFixed(1)}. Total Cost: ${calculateTourCost(path).toFixed(1)}.`
+            };
+            return { path, cost: calculateTourCost(path) };
+        }
+
+        // 2. Brute Force (O(N!)) - Exact but Slow
+        function bruteForceTsp() {
+            const n = cities.length;
+            if (n < 2) return { path: cities, cost: calculateTourCost(cities) }; 
+
+            const indices = Array.from({ length: n }, (_, i) => i);
+            const nodesToPermute = indices.slice(1); // Exclude the starting city (index 0)
+
+            let minCost = Infinity;
+            let bestPathIndices = [];
+
+            // Simple recursive permutation generator
+            function permute(arr, start = []) {
+                if (arr.length === 0) {
+                    const fullPathIndices = [0, ...start];
+                    const currentPath = fullPathIndices.map(i => cities[i]);
+                    const cost = calculateTourCost(currentPath);
+
+                    if (cost < minCost) {
+                        minCost = cost;
+                        bestPathIndices = fullPathIndices;
+                    }
+                } else {
+                    for (let i = 0; i < arr.length; i++) {
+                        const remaining = [...arr.slice(0, i), ...arr.slice(i + 1)];
+                        permute(remaining, [...start, arr[i]]);
+                    }
+                }
+            }
+
+            const startTime = performance.now();
+            permute(nodesToPermute);
+            const endTime = performance.now();
+
+            const path = bestPathIndices.map(i => cities[i]);
+            return {
+                path,
+                cost: minCost,
+                time: (endTime - startTime).toFixed(2)
+            };
+        }
+
+        // 3. Dynamic Programming (Held-Karp) (O(N^2 * 2^N)) - Exact, faster than Brute Force
+        function heldKarpTsp() {
+            const n = cities.length;
+            if (n < 2) return { path: cities, cost: calculateTourCost(cities) };
+
+            // 1. Create distance matrix (cost[i][j])
+            const cost = Array.from({ length: n }, () => Array(n).fill(0));
+            for (let i = 0; i < n; i++) {
+                for (let j = 0; j < n; j++) {
+                    cost[i][j] = distance(cities[i], cities[j]);
+                }
+            }
+
+            // dp[mask][j] stores the minimum cost path that starts at city 0, visits all cities
+            // in the set represented by mask, and ends at city j.
+            const dp = Array(1 << n).fill(0).map(() => Array(n).fill(Infinity));
+            const parent = Array(1 << n).fill(0).map(() => Array(n).fill(-1)); // To reconstruct path
+
+            // Base case: Path from 0 to 0 (mask = 1)
+            dp[1 << 0][0] = 0;
+
+            // 2. Iterate through masks (subsets of visited cities)
+            const finalMask = (1 << n) - 1;
+
+            for (let mask = 1; mask < (1 << n); mask++) {
+                for (let j = 0; j < n; j++) {
+                    // Check if city j is in the current mask (visited)
+                    if (mask & (1 << j)) {
+                        // Iterate through possible preceding cities i
+                        for (let i = 0; i < n; i++) {
+                            if (i !== j && (mask & (1 << i))) {
+                                // maskWithoutJ = mask \ {j}
+                                const maskWithoutJ = mask ^ (1 << j);
+                                const newCost = dp[maskWithoutJ][i] + cost[i][j];
+
+                                if (newCost < dp[mask][j]) {
+                                    dp[mask][j] = newCost;
+                                    parent[mask][j] = i; // City i precedes city j
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // 3. Find the final minimum cost (return to city 0)
+            let minTotalCost = Infinity;
+            let lastCity = -1;
+
+            for (let j = 1; j < n; j++) { // Check paths ending at j (j != 0)
+                const totalCost = dp[finalMask][j] + cost[j][0];
+                if (totalCost < minTotalCost) {
+                    minTotalCost = totalCost;
+                    lastCity = j;
+                }
+            }
+
+            // 4. Reconstruct the path
+            const pathIndices = [];
+            let currentMask = finalMask;
+            let currentCity = lastCity;
+
+            while (currentCity !== -1) {
+                pathIndices.unshift(currentCity);
+                const prevCity = parent[currentMask][currentCity];
+                currentMask ^= (1 << currentCity); // Remove currentCity from mask
+                currentCity = prevCity;
+            }
+            pathIndices.unshift(0); // Start city 0
+
+            const path = pathIndices.map(i => cities[i]);
+
+            return {
+                path,
+                cost: minTotalCost,
+                time: 'N/A' // Time measurement will be done outside
+            };
+        }
+
+
+        // --- Main Controller Logic ---
+
+        function updateUI() {
+            const n = cities.length;
+            document.getElementById('cityCount').textContent = n;
+
+            const runButton = document.getElementById('runAlgorithms');
+            const notice = document.getElementById('runtimeNotice');
+            const deleteButton = document.getElementById('deleteLastCity');
+
+            // Reset card highlights
+            document.querySelectorAll('.algorithm-card').forEach(card => card.classList.remove('active'));
+
+            if (n < 3) {
+                runButton.disabled = true;
+                runButton.textContent = 'Need 3+ Cities to Run';
+                notice.classList.add('hidden');
+            } else if (n > maxCities.DP) {
+                runButton.disabled = true;
+                runButton.textContent = `Max ${maxCities.DP} cities allowed.`;
+                notice.classList.remove('hidden');
+                document.getElementById('dpLimit').textContent = `N=${n}, TOO SLOW`;
+            } else {
+                runButton.disabled = false;
+                runButton.textContent = 'Run All & Compare';
+                notice.classList.remove('hidden');
+                document.getElementById('dpLimit').textContent = `Max 12 cities`;
+            }
+
+            // Update delete button state
+            deleteButton.disabled = n === 0;
+
+            // Update greedy step button
+            document.getElementById('nextStep').disabled = !(runningMethod === 'Greedy' && greedyStep < n);
+
+            // Update path visualization controls state
+            updatePathVizControls(visualizedPathType === 'optimal' ? 'showOptimal' : 'showGreedy');
+        }
+
+        function runAllAlgorithms() {
+            if (cities.length < 3) return;
+
+            // Stop any running step-by-step
+            stopGreedyStepByStep();
+            
+            // Reset results display
+            ['bf', 'dp', 'greedy'].forEach(prefix => {
+                document.getElementById(`${prefix}Cost`).textContent = 'Cost: Running...';
+                document.getElementById(`${prefix}Time`).textContent = 'Time: 0.00 ms';
+                document.getElementById(`card-${prefix === 'bf' ? 'BruteForce' : prefix === 'dp' ? 'DP' : 'Greedy'}`).classList.remove('active');
+            });
+            runningMethod = 'None';
+            document.getElementById('vizStatus').textContent = 'Calculating optimal path...';
+
+            const results = {};
+            const n = cities.length;
+
+            // 1. Run Greedy (Nearest Neighbor)
+            const greedyIterator = greedyTspGenerator(0);
+            let greedyResult;
+            const greedyStart = performance.now();
+            while (true) {
+                const { value, done } = greedyIterator.next();
+                if (done) {
+                    greedyResult = value;
+                    break;
+                }
+            }
+            const greedyEnd = performance.now();
+            
+            greedyPathFinal = greedyResult.path;
+
+            results.Greedy = {
+                cost: greedyResult.cost,
+                path: greedyPathFinal,
+                time: (greedyEnd - greedyStart).toFixed(2)
+            };
+            document.getElementById('greedyCost').textContent = `Cost: ${results.Greedy.cost.toFixed(1)}`;
+            document.getElementById('greedyTime').textContent = `Time: ${results.Greedy.time} ms`;
+
+            // 2. Run Brute Force (if city count is low enough)
+            let bestPath = null;
+            let minCost = Infinity;
+
+            if (n <= maxCities.BruteForce) {
+                const bfStart = performance.now();
+                const bfResult = bruteForceTsp();
+                const bfEnd = performance.now();
+                results.BruteForce = {
+                    ...bfResult,
+                    time: (bfEnd - bfStart).toFixed(2)
+                };
+                document.getElementById('bfCost').textContent = `Cost: ${results.BruteForce.cost.toFixed(1)}`;
+                document.getElementById('bfTime').textContent = `Time: ${results.BruteForce.time} ms`;
+                
+                minCost = bfResult.cost;
+                bestPath = bfResult.path;
+            } else {
+                document.getElementById('bfCost').textContent = 'Cost: Too many cities';
+                document.getElementById('bfTime').textContent = 'Time: N/A';
+            }
+
+            // 3. Run Dynamic Programming (Held-Karp)
+            if (n <= maxCities.DP) {
+                const dpStart = performance.now();
+                const dpResult = heldKarpTsp();
+                const dpEnd = performance.now();
+                results.DP = {
+                    ...dpResult,
+                    time: (dpEnd - dpStart).toFixed(2)
+                };
+                document.getElementById('dpCost').textContent = `Cost: ${dpResult.cost.toFixed(1)}`;
+                document.getElementById('dpTime').textContent = `Time: ${dpEnd - dpStart > 1000 ? ((dpEnd - dpStart) / 1000).toFixed(2) + ' s' : (dpEnd - dpStart).toFixed(2) + ' ms'}`;
+
+
+                // Update best path if DP is better (or if BF wasn't run)
+                if (dpResult.cost < minCost) {
+                    minCost = dpResult.cost;
+                    bestPath = dpResult.path;
+                } else if (n > maxCities.BruteForce) {
+                    // If BF didn't run, DP result is the best available exact solution
+                    minCost = dpResult.cost;
+                    bestPath = dpResult.path;
+                }
+            } else {
+                document.getElementById('dpCost').textContent = 'Cost: Too many cities';
+                document.getElementById('dpTime').textContent = 'Time: N/A';
+            }
+            
+            // Store optimal path
+            optimalPath = bestPath || [];
+
+            // Highlight the card with the actual optimal path found
+            document.querySelectorAll('.algorithm-card').forEach(card => card.classList.remove('active'));
+
+            if (bestPath && results.BruteForce && Math.abs(results.BruteForce.cost - minCost) < 0.01) {
+                document.getElementById('card-BruteForce').classList.add('active');
+            }
+            if (bestPath && results.DP && Math.abs(results.DP.cost - minCost) < 0.01) {
+                document.getElementById('card-DP').classList.add('active');
+            }
+            if (results.Greedy.cost <= minCost || minCost === Infinity) {
+                document.getElementById('card-Greedy').classList.add('active');
+                if (!bestPath) optimalPath = greedyPathFinal; // If only greedy ran (N=1,2), set it as optimal for display
+            }
+
+
+            // Set initial visualization to Optimal and draw it
+            visualizedPathType = 'optimal';
+            drawCurrentVisualizedPath(); 
+            document.getElementById('greedyStatus').textContent = 'Ready for step-by-step visualization.';
+        }
+
+        let greedyGenerator;
+
+        function startGreedyStepByStep() {
+            if (cities.length < 3) return;
+            
+            // Clear final paths for step-by-step mode visualization
+            optimalPath = []; 
+            greedyPathFinal = [];
+            
+            runningMethod = 'Greedy';
+            greedyStep = 0;
+            greedyGenerator = greedyTspGenerator(0);
+            document.getElementById('greedyStatus').textContent = 'Step-by-step started. Click Next Step.';
+            document.getElementById('nextStep').disabled = false;
+            drawMap(); // Clear any previous paths
+            updatePathVizControls('none'); // Update path buttons status
+        }
+
+        function stopGreedyStepByStep() {
+            runningMethod = 'None';
+            greedyStep = 0;
+            document.getElementById('nextStep').disabled = true;
+            document.getElementById('greedyStatus').textContent = 'Visualization paused. Click "Run All" to restart.';
+        }
+
+        function nextGreedyStep() {
+            const result = greedyGenerator.next();
+            if (!result.done) {
+                const { path, current, status } = result.value;
+                // Draw current step path in Pink
+                drawMap(path, current, COLOR_GREEDY_PATH); 
+                document.getElementById('greedyStatus').textContent = status;
+                greedyStep++;
+            } else {
+                // When generator is done, run the comparison to get final results and paths
+                stopGreedyStepByStep();
+                runAllAlgorithms(); 
+            }
+        }
+        
+        // --- Visualization Toggle Functions ---
+
+        /**
+         * Draws the path currently selected by the Path Visualization buttons.
+         */
+        function drawCurrentVisualizedPath() {
+            let path = [];
+            let color = COLOR_OPTIMAL_PATH;
+            let statusText = 'No path calculated yet.';
+            let pathId = 'none';
+
+            if (visualizedPathType === 'optimal' && optimalPath.length > 0) {
+                path = optimalPath;
+                color = COLOR_OPTIMAL_PATH; // Cyan for optimal
+                statusText = 'Showing the Optimal/Best calculated path (Cyan).';
+                pathId = 'showOptimal';
+            } else if (visualizedPathType === 'greedy' && greedyPathFinal.length > 0) {
+                path = greedyPathFinal;
+                color = COLOR_GREEDY_PATH; // Hot Pink for greedy
+                statusText = 'Showing the final Greedy (Nearest Neighbor) path (Pink).';
+                pathId = 'showGreedy';
+            } else {
+                 drawMap();
+                 updatePathVizControls(pathId);
+                 document.getElementById('vizStatus').textContent = statusText;
+                 return;
+            }
+            
+            // Redraw map with the selected path
+            drawMap(path, -1, color);
+            document.getElementById('vizStatus').textContent = statusText;
+            updatePathVizControls(pathId);
+        }
+
+        /**
+         * Updates the visual state and enabled/disabled status of the path toggle buttons.
+         */
+        function updatePathVizControls(activeId = 'none') {
+            const optimalBtn = document.getElementById('showOptimal');
+            const greedyBtn = document.getElementById('showGreedy');
+
+            [optimalBtn, greedyBtn].forEach(btn => {
+                btn.classList.remove('bg-indigo-500', 'text-white', 'border-indigo-300', 'bg-white', 'text-indigo-700', 'opacity-50', 'cursor-not-allowed', 'bg-pink-500', 'bg-cyan-500', 'text-gray-900', 'bg-gray-700');
+                
+                // Determine disabled state
+                const isDisabled = (btn.id === 'showOptimal' && optimalPath.length === 0) || 
+                                   (btn.id === 'showGreedy' && greedyPathFinal.length === 0);
+
+                if (isDisabled) {
+                    btn.disabled = true;
+                    btn.classList.add('opacity-50', 'cursor-not-allowed', 'bg-gray-700', 'text-gray-400');
+                } else {
+                    btn.disabled = false;
+                    if (btn.id === activeId) {
+                        if (activeId === 'showOptimal') {
+                            btn.classList.add('bg-cyan-500', 'text-gray-900');
+                        } else {
+                            btn.classList.add('bg-pink-500', 'text-white');
+                        }
+                    } else {
+                        btn.classList.add('bg-gray-700', 'text-white', 'hover:bg-gray-600');
+                    }
+                }
+            });
+        }
+
+
+        // --- Event Handlers ---
+
+        function clearResultsAndViz() {
+            stopGreedyStepByStep();
+            optimalPath = []; 
+            greedyPathFinal = [];
+            visualizedPathType = 'optimal'; 
+            
+            // Clear results display
+            ['bf', 'dp', 'greedy'].forEach(prefix => {
+                document.getElementById(`${prefix}Cost`).textContent = 'Cost: -';
+                document.getElementById(`${prefix}Time`).textContent = 'Time: -';
+            });
+            document.getElementById('greedyStatus').textContent = 'Waiting for calculation...';
+            document.getElementById('vizStatus').textContent = 'Click "Run All & Compare" to see paths.';
+        }
+
+        function addCity(x, y) {
+            clearResultsAndViz();
+            
+            if (cities.length >= maxCities.DP + 1) {
+                document.getElementById('runtimeNotice').textContent = `Max cities reached (${maxCities.DP + 1}). Please reset.`;
+                document.getElementById('runtimeNotice').classList.remove('hidden');
+                return;
+            }
+
+            cities.push({ x, y, name: String.fromCharCode(65 + cities.length) });
+            updateUI();
+            drawMap();
+        }
+
+        function deleteLastCity() {
+            if (cities.length > 0) {
+                cities.pop();
+                clearResultsAndViz();
+                updateUI();
+                drawMap();
+                
+                if (cities.length === 0) {
+                    document.getElementById('greedyStatus').textContent = 'Waiting for cities.';
+                    document.getElementById('vizStatus').textContent = 'Click "Run All & Compare" to generate paths.';
+                }
+            }
+        }
+
+        canvas.addEventListener('click', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            const scaleX = canvas.width / rect.width;
+            const scaleY = canvas.height / rect.height;
+
+            const x = (e.clientX - rect.left) * scaleX;
+            const y = (e.clientY - rect.top) * scaleY;
+
+            addCity(x, y);
+        });
+
+        document.getElementById('deleteLastCity').addEventListener('click', deleteLastCity);
+        
+        document.getElementById('resetCities').addEventListener('click', () => {
+            cities = [];
+            clearResultsAndViz();
+            document.getElementById('runtimeNotice').classList.add('hidden');
+            document.getElementById('greedyStatus').textContent = 'Waiting for cities.';
+            document.getElementById('vizStatus').textContent = 'Click "Run All & Compare" to generate paths.';
+            updateUI();
+            drawMap();
+        });
+
+        document.getElementById('runAlgorithms').addEventListener('click', () => {
+             runAllAlgorithms();
+             // Immediately prepare for step-by-step
+             startGreedyStepByStep();
+        });
+
+        document.getElementById('nextStep').addEventListener('click', nextGreedyStep);
+        
+        document.getElementById('showOptimal').addEventListener('click', () => {
+            visualizedPathType = 'optimal';
+            drawCurrentVisualizedPath();
+            stopGreedyStepByStep();
+        });
+
+        document.getElementById('showGreedy').addEventListener('click', () => {
+            visualizedPathType = 'greedy';
+            drawCurrentVisualizedPath();
+            stopGreedyStepByStep();
+        });
+
+        document.getElementById('randomCities').addEventListener('click', () => {
+            document.getElementById('resetCities').click(); // Reset first
+            const numCities = 5;
+            for (let i = 0; i < numCities; i++) {
+                // Generate cities within a safe margin of the canvas
+                const x = Math.random() * (canvas.width - 100) + 50;
+                const y = Math.random() * (canvas.height - 100) + 50;
+                // Directly push without calling addCity to avoid redundant UI updates during generation
+                cities.push({ x, y, name: String.fromCharCode(65 + cities.length) });
+            }
+            updateUI();
+            runAllAlgorithms();
+            startGreedyStepByStep();
+        });
+
+        // Initialize on load
+        window.onload = function() {
+            // Set fixed aspect ratio for calculations (e.g., 3:2 ratio)
+            canvas.width = 900;
+            canvas.height = 550;
+
+            // Initial draw
+            drawMap();
+            updateUI();
+        };
+
+    </script>
+</body>
+</html>
+
+
+
+
