@@ -7,8 +7,9 @@
     
     <!-- Load Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Custom Styles -->
     <style>
-        /* --- CSS STYLES FOR DARK THEME (Pink, Blue, Purple Accents) --- */
         body {
             font-family: 'Inter', sans-serif;
             background-color: #1a1a2e; /* Deep Dark Blue/Purple background */
@@ -17,60 +18,72 @@
         
         /* --- Glowing Title Styles --- */
         .glowing-title {
-            color: #ccccff; /* Lighter bluish-purple text color */
-            /* New glow effect based on map border */
+            color: #8888ff; /* Bluish-purple to match map border */
             text-shadow: 
-                0 0 5px rgba(136, 136, 255, 0.6),  /* Inner glow */
-                0 0 10px rgba(136, 136, 255, 0.4), /* Main glow */
-                0 0 20px rgba(136, 136, 255, 0.3); /* Outer glow */
+                0 0 5px rgba(136, 136, 255, 0.6),
+                0 0 10px rgba(136, 136, 255, 0.4),
+                0 0 15px rgba(136, 136, 255, 0.3);
         }
 
         .glowing-subtitle {
             color: #e0e0ff !important; /* Light lavender color */
-            /* Subtle glow effect */
             text-shadow: 
-                0 0 4px rgba(0, 255, 255, 0.3),  /* Faint cyan glow */
-                0 0 8px rgba(160, 32, 240, 0.3); /* Faint purple glow */
+                0 0 4px rgba(0, 255, 255, 0.3),
+                0 0 8px rgba(160, 32, 240, 0.3);
         }
 
         #mapCanvas {
             border: 2px solid #8888ff; /* Bluish-purple border */
-            background-color: #251858; /* Dark blue/purple map background */
+            background-color: #251858; /* Dark blue map interior */
             cursor: crosshair;
             border-radius: 0.5rem;
-            box-shadow: 0 0 15px rgba(136, 136, 255, 0.3); /* Softer bluish-purple glow */
-            width: 100%; /* Ensure canvas is fully responsive */
-            height: auto; /* Handled by container / fixed height attribute */
+            box-shadow: 0 0 10px rgba(136, 136, 255, 0.3); /* Softer bluish-purple glow */
+            width: 100%;
+            height: 100%; /* Canvas will fill its container */
         }
         
-        /* Apply gradient background to all relevant cards/panels */
-        .algorithm-card, 
-        .bg-white, /* This class is used on Settings and Run Algorithms */
-        #pathVizControls, 
-        #greedyControls {
-            background: linear-gradient(180deg, #1f1f1f 0%, #2c2c54 100%) !important; /* Dark Black to Dark Purple gradient */
+        /* Gradient background for all panels */
+        .panel {
+            background: linear-gradient(180deg, #1f1f1f 0%, #2c2c54 100%) !important;
             transition: all 0.3s ease;
             border: 1px solid #3c3c6f;
             border-radius: 0.5rem;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2); /* Subtle shadow for depth */
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
         }
 
         .algorithm-card.active {
-            border-left: 4px solid #00ffff; /* Cyan highlight for the 'optimal' path */
+            border-left: 4px solid #00ffff;
             transform: translateY(-2px);
-            box-shadow: 0 0 10px rgba(0, 255, 255, 0.3); /* Cyan shadow */
+            box-shadow: 0 0 10px rgba(0, 255, 255, 0.3);
         }
         
-        /* Overrides for text/backgrounds in the dark theme */
+        /* Text color overrides for dark theme */
         .text-gray-900 { color: #ffffff !important; }
         .text-gray-600 { color: #ccc !important; }
         .text-gray-700 { color: #fff !important; }
         .text-gray-800 { color: #ffffff !important; }
 
-        /* Specific accent colors for control blocks - ensure text is visible */
-        #greedyStatus, #vizStatus {
-            color: #ffffff !important; /* Ensure status text is bright white */
+        /* Pseudocode styles */
+        .pseudocode {
+            font-family: 'Menlo', 'Courier New', monospace;
+            font-size: 0.875rem; /* text-sm */
+            color: #e0e0ff;
+            height: 550px; /* Match canvas container height */
+            overflow-y: auto;
         }
+        .pseudocode-line {
+            padding: 4px 8px;
+            transition: all 0.2s ease;
+            border-radius: 4px;
+        }
+        .pseudocode-line.highlight {
+            background-color: rgba(255, 105, 180, 0.2); /* Pink highlight */
+            border-left: 2px solid #ff69b4;
+            color: #ffffff;
+        }
+        .pseudocode-line .indent-1 { padding-left: 1.5rem; }
+        .pseudocode-line .indent-2 { padding-left: 3rem; }
+        .pseudocode-line .comment { color: #888; }
 
     </style>
 </head>
@@ -78,14 +91,12 @@
     <div class="max-w-7xl mx-auto">
         
         <!-- Main Title -->
-        <h1 class="text-3xl font-extrabold mb-2 glowing-title">Traveling Salesman Problem (TSP) Solver</h1>
-        <p class="text-gray-300 mb-6">Click on the map to place cities (max 12). Start city is always **City A** (Bright Red).</p>
+        <h1 class="text-3xl font-extrabold mb-2 text-center glowing-title">Traveling Salesman Problem (TSP) Solver</h1>
+        <p class="text-gray-300 mb-6 text-center">Click on the map to place cities (max 12). Start city is always **City A** (Bright Red).</p>
 
-        <!-- Top Settings Panel -->
+        <!-- SETTINGS (Top Row) -->
         <div class="mb-6">
-            
-            <div class="bg-white p-4 rounded-xl shadow-lg border border-gray-100">
-                
+            <div class="panel p-4">
                 <h2 class="text-xl font-semibold mb-3 text-center glowing-subtitle">Settings</h2>
                 <div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-3 gap-3">
                     <button id="deleteLastCity" class="bg-pink-700 hover:bg-pink-800 text-white font-bold py-3 px-4 rounded-lg transition disabled:bg-pink-900 disabled:text-gray-400">
@@ -105,70 +116,128 @@
             </div>
         </div>
 
-        <!-- Main Content (Controls + Map) -->
-        <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
-
-            <!-- Left Controls Column -->
-            <div class="lg:col-span-1 space-y-4">
-                
-                <!-- Run Algorithms Panel -->
-                <div class="bg-white p-4 rounded-xl shadow-lg border border-gray-100">
-                    
-                    <h2 class="text-xl font-semibold mb-3 glowing-subtitle">Run Algorithms</h2>
-                    <button id="runAlgorithms" class="w-full bg-cyan-500 hover:bg-cyan-600 text-gray-900 font-bold py-3 px-4 rounded-lg transition disabled:bg-cyan-700 disabled:text-gray-400">
-                        Run All & Compare
+        <!-- CONTROLS (Middle-Top Row) -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+            
+            <!-- Run Algorithms -->
+            <div class="panel p-4">
+                <h2 class="text-xl font-semibold mb-3 glowing-subtitle">Run Algorithms</h2>
+                <button id="runAlgorithms" class="w-full bg-cyan-500 hover:bg-cyan-600 text-gray-900 font-bold py-3 px-4 rounded-lg transition disabled:bg-cyan-700 disabled:text-gray-400">
+                    Run All & Compare
+                </button>
+                <p id="runtimeNotice" class="text-xs text-red-400 mt-2 hidden">
+                    Warning: Brute Force/DP are exponential and will be slow for N > 8/12 cities.
+                </p>
+            </div>
+            
+            <!-- Path Visualization -->
+            <div id="pathVizControls" class="panel p-4">
+                <h2 class="text-xl font-semibold mb-3 glowing-subtitle">Path Visualization</h2>
+                <div class="flex space-x-2 text-sm">
+                    <button id="showOptimal" data-path="optimal" class="flex-1 py-2 px-3 rounded-lg font-bold transition">
+                        Optimal Path (Cyan)
                     </button>
-                    <p id="runtimeNotice" class="text-xs text-red-400 mt-2 hidden">
-                        Warning: Brute Force/DP are exponential and will be slow for N > 8/12 cities.
-                    </p>
+                    <button id="showGreedy" data-path="greedy" class="flex-1 py-2 px-3 rounded-lg font-bold transition">
+                        Greedy Path (Pink)
+                    </button>
                 </div>
-                
-                <!-- Path Visualization Panel -->
-                <div id="pathVizControls" class="p-4 rounded-xl shadow-lg border">
-                    
-                    <h2 class="text-xl font-semibold mb-3 glowing-subtitle">Path Visualization</h2>
-                    <div class="flex space-x-2 text-sm">
-                        <button id="showOptimal" data-path="optimal" class="flex-1 py-2 px-3 rounded-lg font-bold transition">
-                            Optimal Path (Cyan)
-                        </button>
-                        <button id="showGreedy" data-path="greedy" class="flex-1 py-2 px-3 rounded-lg font-bold transition">
-                            Greedy Path (Pink)
-                        </button>
+                <p class="mt-3 text-sm font-medium" id="vizStatus">Click "Run All & Compare" to generate paths.</p>
+            </div>
+
+            <!-- Greedy Step-by-Step -->
+            <div id="greedyControls" class="panel p-4">
+                <h2 class="text-xl font-semibold mb-3 glowing-subtitle">Greedy Step-by-Step</h2>
+                <p class="text-sm text-gray-300 mb-3">Visualize the Nearest Neighbor construction.</p>
+                <button id="nextStep" class="w-full bg-purple-500 hover:bg-purple-600 text-white font-bold py-2 px-4 rounded-lg transition disabled:bg-purple-800" disabled>
+                    Next Step
+                </button>
+                <p id="greedyStatus" class="mt-3 text-sm font-medium"></p>
+            </div>
+        </div>
+
+
+        <!-- VISUALIZATION AREA (Middle-Bottom Row) -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+            <!-- Pseudocode Panel -->
+            <div class="lg:col-span-1">
+                <div class="panel p-4 pseudocode">
+                    <h2 class="text-xl font-semibold mb-3 glowing-subtitle">Greedy Algorithm</h2>
+                    <div id="pseudo-0" class="pseudocode-line">
+                        <span class="comment">// Nearest Neighbor Heuristic</span>
                     </div>
-                    <p class="mt-3 text-sm font-medium" id="vizStatus">Click "Run All & Compare" to generate paths.</p>
-                </div>
-
-                <!-- Greedy Step-by-Step Panel -->
-                <div id="greedyControls" class="p-4 rounded-xl shadow-lg border">
-                    
-                    <h2 class="text-xl font-semibold mb-3 glowing-subtitle">Greedy Step-by-Step</h2>
-                    <p class="text-sm text-gray-300 mb-3">Visualize the Nearest Neighbor construction.</p>
-                    <button id="nextStep" class="w-full bg-purple-500 hover:bg-purple-600 text-white font-bold py-2 px-4 rounded-lg transition disabled:bg-purple-800" disabled>
-                        Next Step
-                    </button>
-                    <p id="greedyStatus" class="mt-3 text-sm font-medium"></p>
+                    <div id="pseudo-1" class="pseudocode-line">
+                        FUNC GreedyTSP(cities):
+                    </div>
+                    <div id="pseudo-2" class="pseudocode-line indent-1">
+                        path = [City A]
+                    </div>
+                    <div id="pseudo-3" class="pseudocode-line indent-1">
+                        visited = {City A}
+                    </div>
+                    <div id="pseudo-4" class="pseudocode-line indent-1">
+                        currentCity = City A
+                    </div>
+                    <div id="pseudo-5" class="pseudocode-line indent-1">
+                        WHILE visited.count < totalCities:
+                    </div>
+                    <div id="pseudo-6" class="pseudocode-line indent-2">
+                        minDist = Infinity
+                    </div>
+                    <div id="pseudo-7" class="pseudocode-line indent-2">
+                        nearest = null
+                    </div>
+                    <div id="pseudo-8" class="pseudocode-line indent-2">
+                        FOR each city in cities:
+                    </div>
+                    <div id="pseudo-9" class="pseudocode-line indent-2">
+                        <span class="indent-1">IF city NOT in visited:</span>
+                    </div>
+                    <div id="pseudo-10" class="pseudocode-line indent-2">
+                        <span class="indent-2">dist = distance(currentCity, city)</span>
+                    </div>
+                    <div id="pseudo-11" class="pseudocode-line indent-2">
+                        <span class="indent-2">IF dist < minDist:</span>
+                    </div>
+                    <div id="pseudo-12" class="pseudocode-line indent-2">
+                        <span class="indent-2"><span class="indent-1">minDist = dist</span></span>
+                    </div>
+                    <div id="pseudo-13" class="pseudocode-line indent-2">
+                        <span class="indent-2"><span class="indent-1">nearest = city</span></span>
+                    </div>
+                    <div id="pseudo-14" class="pseudocode-line indent-2">
+                        path.add(nearest)
+                    </div>
+                    <div id="pseudo-15" class="pseudocode-line indent-2">
+                        visited.add(nearest)
+                    </div>
+                    <div id="pseudo-16" class="pseudocode-line indent-2">
+                        currentCity = nearest
+                    </div>
+                    <div id="pseudo-17" class="pseudocode-line indent-1">
+                        path.add(City A) <span class="comment">// Return to start</span>
+                    </div>
+                    <div id="pseudo-18" class="pseudocode-line indent-1">
+                        RETURN path
+                    </div>
                 </div>
             </div>
 
-            <!-- Right Map Column -->
-            <div class="lg:col-span-3">
-                
-                <div>
-                    <!-- Map Canvas -->
+            <!-- Map Canvas -->
+            <div class="lg:col-span-2">
+                <div style="width: 100%; height: 550px;">
                     <canvas id="mapCanvas" width="900" height="550"></canvas>
                 </div>
             </div>
         </div>
 
-        <!-- Bottom Results Panel -->
+        <!-- RESULTS (Bottom Row) -->
         <div class="mt-8">
-            
             <h2 class="text-2xl font-bold mb-4 glowing-subtitle">Comparison Results</h2>
             <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
                 
                 <!-- Brute Force Card -->
-                <div id="card-BruteForce" class="algorithm-card p-6 rounded-xl shadow-md">
-                    
+                <div id="card-BruteForce" class="panel algorithm-card p-6">
                     <h3 class="text-lg font-bold flex justify-between items-center glowing-subtitle">
                         Brute Force (Exact)
                         <span class="text-xs font-normal text-red-400" id="bfLimit">Max 8 cities</span>
@@ -178,9 +247,8 @@
                     <p class="text-sm text-gray-300" id="bfTime">Time: -</p>
                 </div>
 
-                <!-- Dynamic Programming Card -->
-                <div id="card-DP" class="algorithm-card p-6 rounded-xl shadow-md">
-                    
+                <!-- DP Card -->
+                <div id="card-DP" class="panel algorithm-card p-6">
                     <h3 class="text-lg font-bold flex justify-between items-center glowing-subtitle">
                         Dynamic Programming (Exact)
                         <span class="text-xs font-normal text-red-400" id="dpLimit">Max 12 cities</span>
@@ -191,8 +259,7 @@
                 </div>
 
                 <!-- Greedy Card -->
-                <div id="card-Greedy" class="algorithm-card p-6 rounded-xl shadow-md">
-                    
+                <div id="card-Greedy" class="panel algorithm-card p-6">
                     <h3 class="text-lg font-bold glowing-subtitle">Nearest Neighbor (Heuristic)</h3>
                     <p class="text-sm text-gray-400 mb-2">Visits the closest unvisited city next (O(n²)).</p>
                     <p class="mt-2 text-2xl font-extrabold text-white" id="greedyCost">Cost: -</p>
@@ -219,8 +286,8 @@
         
         // Store distances for drawing
         let stepByStepDistances = []; 
-        let optimalPathDistances = []; // NEW: Distances for final optimal path
-        let greedyPathDistances = []; // NEW: Distances for final greedy path
+        let optimalPathDistances = []; // Distances for final optimal path
+        let greedyPathDistances = []; // Distances for final greedy path
 
 
         const maxCities = {
@@ -305,21 +372,27 @@
         }
 
         /**
-         * NEW: Draws distance labels on the map during step-by-step.
+         * Draws distance labels on the map.
+         * labels = [{from, to, dist}]
          */
         function drawDistanceLabels(labels) {
             ctx.fillStyle = COLOR_DISTANCE_LABEL;
             ctx.font = 'bold 14px Inter';
             ctx.textAlign = 'center';
-            ctx.textBaseline = 'bottom';
-            
+            ctx.textBaseline = 'middle';
+
             labels.forEach(label => {
-                // Find midpoint of the line
                 const midX = (label.from.x + label.to.x) / 2;
                 const midY = (label.from.y + label.to.y) / 2;
                 
-                // Add a small offset so text isn't directly on the line
-                ctx.fillText(label.dist.toFixed(1), midX, midY - 5);
+                // Add a small perpendicular offset to avoid drawing on the line
+                let dx = label.to.x - label.from.x;
+                let dy = label.to.y - label.from.y;
+                let len = Math.sqrt(dx*dx + dy*dy);
+                let offsetX = -(dy / len) * 10;
+                let offsetY = (dx / len) * 10;
+
+                ctx.fillText(label.dist.toFixed(0), midX + offsetX, midY + offsetY);
             });
             
             ctx.textAlign = 'left'; // Reset default
@@ -333,8 +406,8 @@
             if (currentPath.length > 0) {
                 drawPath(currentPath, pathColor, 3);
             }
-
-            // NEW: Draw specified distance labels if they exist
+            
+            // Draw specified distance labels if they exist
             if (labelsToDraw.length > 0) {
                 drawDistanceLabels(labelsToDraw);
             }
@@ -348,9 +421,30 @@
                 } else if (index === 0) {
                     // Starting city (A) is always Red
                     color = COLOR_START_CITY; 
+                } else if (currentPath.includes(city)) {
+                    // Visited city in the final path (color doesn't matter much as path color dominates)
+                    color = COLOR_OPTIMAL_PATH; 
                 } 
 
                 drawCity(city, index, color, index === activeCityIndex);
+            });
+        }
+        
+        /**
+         * Highlights lines in the pseudocode panel.
+         */
+        function highlightPseudocode(lineIds = []) {
+            // Clear all previous highlights
+            document.querySelectorAll('.pseudocode-line').forEach(line => {
+                line.classList.remove('highlight');
+            });
+            
+            // Apply new highlights
+            lineIds.forEach(id => {
+                const line = document.getElementById(`pseudo-${id}`);
+                if (line) {
+                    line.classList.add('highlight');
+                }
             });
         }
 
@@ -366,18 +460,24 @@
             visited[startCityIndex] = true;
             let currentCityIndex = startCityIndex;
 
-            yield { path: [...path], current: currentCityIndex, status: `Starting tour at **City A**.`, lastDist: null };
+            highlightPseudocode([1, 2, 3, 4]);
+            yield { path: [...path], current: currentCityIndex, status: `Starting tour at **City A**.` };
 
             for (let step = 0; step < n - 1; step++) {
                 let nearestNeighborIndex = -1;
                 let minDistance = Infinity;
                 const prevCity = currentCityIndex;
 
+                highlightPseudocode([5, 6, 7, 8]);
+                yield { path: [...path], current: currentCityIndex, status: `Finding nearest for **${String.fromCharCode(65 + prevCity)}**...`, distInfo: null };
+
                 // Find the nearest unvisited city
                 for (let i = 0; i < n; i++) {
                     if (!visited[i]) {
+                        highlightPseudocode([9, 10]);
                         const dist = distance(cities[currentCityIndex], cities[i]);
                         if (dist < minDistance) {
+                            highlightPseudocode([11, 12, 13]);
                             minDistance = dist;
                             nearestNeighborIndex = i;
                         }
@@ -388,22 +488,31 @@
                     currentCityIndex = nearestNeighborIndex;
                     visited[currentCityIndex] = true;
                     path.push(cities[currentCityIndex]);
+                    
+                    const distInfo = { from: cities[prevCity], to: cities[currentCityIndex], dist: minDistance };
+                    
+                    highlightPseudocode([14, 15, 16]);
                     yield {
                         path: [...path],
                         current: currentCityIndex,
-                        status: `From ${String.fromCharCode(65 + prevCity)}, chose nearest unvisited city: **${String.fromCharCode(65 + currentCityIndex)}**.`,
-                        lastDist: minDistance // Pass the distance back
+                        status: `From ${String.fromCharCode(65 + prevCity)}, chose nearest unvisited city: **${String.fromCharCode(65 + currentCityIndex)}**. Dist: ${minDistance.toFixed(1)}.`,
+                        distInfo: distInfo
                     };
                 }
             }
             // Final step: return to start
             const returnDist = distance(path[path.length - 1], cities[startCityIndex]);
+            const distInfo = { from: path[path.length - 1], to: cities[startCityIndex], dist: returnDist };
+
+            highlightPseudocode([17, 18]);
             yield {
                 path: [...path],
                 current: startCityIndex,
-                status: `Tour complete. Returning to start **City A**. Total Cost: ${calculateTourCost(path).toFixed(1)}.`,
-                lastDist: returnDist // Pass the final distance back
+                status: `Tour complete. Returning to start **City A**. Return Dist: ${returnDist.toFixed(1)}. Total Cost: ${calculateTourCost(path).toFixed(1)}.`,
+                distInfo: distInfo
             };
+            
+            highlightPseudocode(); // Clear
             return { path, cost: calculateTourCost(path) };
         }
 
@@ -562,7 +671,9 @@
             deleteButton.disabled = n === 0;
 
             // Update greedy step button
-            document.getElementById('nextStep').disabled = !(runningMethod === 'Greedy' && greedyStep < n);
+            // --- FIX 1: Simplified logic. Button is enabled *only* if the greedy method is active. ---
+            // The stopGreedyStepByStep() function is now solely responsible for disabling it.
+            document.getElementById('nextStep').disabled = !(runningMethod === 'Greedy');
 
             // Update path visualization controls state
             updatePathVizControls(visualizedPathType === 'optimal' ? 'showOptimal' : 'showGreedy');
@@ -661,7 +772,7 @@
             // Store optimal path
             optimalPath = bestPath || [];
 
-            // NEW: Calculate distances for final optimal path
+            // Calculate distances for final optimal path
             optimalPathDistances = [];
             if (optimalPath.length > 0) {
                 for (let i = 0; i < optimalPath.length; i++) {
@@ -675,7 +786,7 @@
                 }
             }
             
-            // NEW: Calculate distances for final greedy path
+            // Calculate distances for final greedy path
             greedyPathDistances = [];
             if (greedyPathFinal.length > 0) {
                 for (let i = 0; i < greedyPathFinal.length; i++) {
@@ -718,7 +829,6 @@
             // Clear final paths for step-by-step mode visualization
             optimalPath = []; 
             greedyPathFinal = [];
-            // NEW: Clear distance labels
             stepByStepDistances = []; 
             optimalPathDistances = [];
             greedyPathDistances = [];
@@ -735,24 +845,19 @@
         function stopGreedyStepByStep() {
             runningMethod = 'None';
             greedyStep = 0;
-            // NEW: Clear distance labels when stopping
-            stepByStepDistances = []; 
+            stepByStepDistances = [];
             document.getElementById('nextStep').disabled = true;
             document.getElementById('greedyStatus').textContent = 'Visualization paused. Click "Run All" to restart.';
+            highlightPseudocode(); // Clear highlights
         }
 
         function nextGreedyStep() {
             const result = greedyGenerator.next();
             if (!result.done) {
-                const { path, current, status, lastDist } = result.value;
+                const { path, current, status, distInfo } = result.value;
                 
-                // NEW: Add the new distance label
-                if (lastDist) {
-                    stepByStepDistances.push({
-                        from: path[path.length - 2],
-                        to: path[path.length - 1],
-                        dist: lastDist
-                    });
+                if (distInfo) {
+                    stepByStepDistances.push(distInfo);
                 }
                 
                 // Draw current step path in Pink
@@ -764,6 +869,7 @@
                 stopGreedyStepByStep();
                 runAllAlgorithms(); 
             }
+            updateUI(); // Update button state
         }
         
         // --- Visualization Toggle Functions ---
@@ -776,20 +882,20 @@
             let color = COLOR_OPTIMAL_PATH;
             let statusText = 'No path calculated yet.';
             let pathId = 'none';
-            let labels = []; // NEW: Labels to draw
+            let labels = [];
 
             if (visualizedPathType === 'optimal' && optimalPath.length > 0) {
                 path = optimalPath;
                 color = COLOR_OPTIMAL_PATH; // Cyan for optimal
                 statusText = 'Showing the Optimal/Best calculated path (Cyan).';
                 pathId = 'showOptimal';
-                labels = optimalPathDistances; // NEW
+                labels = optimalPathDistances;
             } else if (visualizedPathType === 'greedy' && greedyPathFinal.length > 0) {
                 path = greedyPathFinal;
                 color = COLOR_GREEDY_PATH; // Hot Pink for greedy
                 statusText = 'Showing the final Greedy (Nearest Neighbor) path (Pink).';
                 pathId = 'showGreedy';
-                labels = greedyPathDistances; // NEW
+                labels = greedyPathDistances;
             } else {
                  drawMap(); // Will draw with no path and no labels
                  updatePathVizControls(pathId);
@@ -798,7 +904,7 @@
             }
             
             // Redraw map with the selected path and its labels
-            drawMap(path, -1, color, labels); // NEW: pass labels
+            drawMap(path, -1, color, labels);
             document.getElementById('vizStatus').textContent = statusText;
             updatePathVizControls(pathId);
         }
@@ -843,9 +949,9 @@
             optimalPath = []; 
             greedyPathFinal = [];
             visualizedPathType = 'optimal'; 
-            stepByStepDistances = []; // NEW: Clear distances
-            optimalPathDistances = []; // NEW: Clear distances
-            greedyPathDistances = []; // NEW: Clear distances
+            stepByStepDistances = [];
+            optimalPathDistances = [];
+            greedyPathDistances = [];
             
             // Clear results display
             ['bf', 'dp', 'greedy'].forEach(prefix => {
@@ -865,7 +971,7 @@
                 return;
             }
 
-            cities.push({ x, y, name: String.fromCharCode(65 + cities.length) });
+            cities.push({ x, y, name: String.fromCharCode(65 + cities.contentFetchId) });
             updateUI();
             drawMap();
         }
@@ -938,15 +1044,23 @@
                 cities.push({ x, y, name: String.fromCharCode(65 + cities.length) });
             }
             updateUI();
-            runAllAlgorithms();
-            startGreedyStepByStep();
+            // --- FIX 2: Removed auto-run functionality. Just draw the cities. ---
+            drawMap(); 
         });
 
         // Initialize on load
         window.onload = function() {
             // Set fixed aspect ratio for calculations (e.g., 3:2 ratio)
-            canvas.width = 900;
-            canvas.height = 550;
+            const mapContainer = canvas.parentElement;
+            canvas.width = mapContainer.clientWidth;
+            canvas.height = mapContainer.clientHeight;
+            
+            // Adjust canvas size on window resize
+            window.addEventListener('resize', () => {
+                canvas.width = mapContainer.clientWidth;
+                canvas.height = mapContainer.clientHeight;
+                drawCurrentVisualizedPath(); // Redraw paths
+            });
 
             // Initial draw
             drawMap();
@@ -956,6 +1070,3 @@
     </script>
 </body>
 </html>
-
-
-
